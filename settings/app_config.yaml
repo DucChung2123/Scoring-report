@@ -2,3 +2,8 @@ app:
   app_name: "FH ESC Scoring"
   host: 0.0.0.0
   port: 8888
+
+embedding:
+  model_dir: "models"
+  model_name: "gte-multilingual-base"
+  batch_size: 32

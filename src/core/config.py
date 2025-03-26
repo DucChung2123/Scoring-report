@@ -9,5 +9,8 @@ class AppConfig(BaseModel):
     HOST: str = Field(default=APP_CONFIG_YAML["app"]["host"])
     PORT: int = Field(default=APP_CONFIG_YAML["app"]["port"])
     
+    MODEL_DIR: str = Field(default=APP_CONFIG_YAML["embedding"]["model_dir"])
+    MODEL_NAME: str = Field(default=APP_CONFIG_YAML["embedding"]["model_name"])
+    BATCH_SIZE: int = Field(default=APP_CONFIG_YAML["embedding"]["batch_size"])
 
 settings = AppConfig()
