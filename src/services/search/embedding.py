@@ -9,35 +9,41 @@ class Embedding:
     model_name = settings.MODEL_NAME  # Should be 'Alibaba-NLP/gte-multilingual-base'
     model_dir = settings.MODEL_DIR
     batch_size = settings.BATCH_SIZE
-    embedding_dimension = settings.EMBEDDING_DIMENSION if hasattr(settings, 'EMBEDDING_DIMENSION') else 768
+    embedding_dimension = 768
+    model = None
+    tokenizer = None
     
-    def __init__(self):
-        self.model = None
-        self.tokenizer = None
-        self._load_model()
-    
-    def _load_model(self):
+    @classmethod
+    def initialize(cls):
+        """
+        Khởi tạo model và tokenizer cho class
+        """
+        if cls.model is None or cls.tokenizer is None:
+            cls._load_model()
+        
+    @classmethod
+    def _load_model(cls):
         """
         Load model from directory. If not present, download and save it.
         Use GPU if available, otherwise use CPU.
         """
         # Check if model exists in model_dir
-        os.makedirs(self.model_dir, exist_ok=True)
-        model_path = os.path.join(self.model_dir, self.model_name.split('/')[-1])
+        os.makedirs(cls.model_dir, exist_ok=True)
+        model_path = os.path.join(cls.model_dir, cls.model_name.split('/')[-1])
         
         try:
             if os.path.exists(model_path):
                 print(f"Loading model from {model_path}")
-                self.model = AutoModel.from_pretrained(model_path, trust_remote_code=True)
-                self.tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+                cls.model = AutoModel.from_pretrained(model_path, trust_remote_code=True)
+                cls.tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
             else:
                 print(f"Model not found in {model_path}. Downloading...")
-                self.model = AutoModel.from_pretrained(self.model_name, trust_remote_code=True)
-                self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, trust_remote_code=True)
+                cls.model = AutoModel.from_pretrained(cls.model_name, trust_remote_code=True)
+                cls.tokenizer = AutoTokenizer.from_pretrained(cls.model_name, trust_remote_code=True)
                 
                 # Save the model
-                self.model.save_pretrained(model_path)
-                self.tokenizer.save_pretrained(model_path)
+                cls.model.save_pretrained(model_path)
+                cls.tokenizer.save_pretrained(model_path)
                 print(f"Model saved to {model_path}")
         except Exception as e:
             print(f"Error loading model: {e}")
@@ -46,8 +52,9 @@ class Embedding:
         # Move model to GPU if available
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"Using device: {device}")
-        self.model = self.model.to(device)
-        self.model.eval()
+        cls.embedding_dimension = cls.model.config.hidden_size
+        cls.model = cls.model.to(device)
+        cls.model.eval()
     
     @staticmethod
     def embeddings(texts, model, tokenizer, batch_size=32, embedding_dimension=768):
@@ -99,7 +106,8 @@ class Embedding:
         
         return embeddings, texts
     
-    def get_embeddings(self, texts):
+    @classmethod
+    def get_embeddings(cls, texts):
         """
         Public method to get embeddings for a list of texts
         
@@ -109,15 +117,18 @@ class Embedding:
         Returns:
             tuple: (embeddings, original_texts)
         """
-        embeddings, original_texts = self.embeddings(
+        # Kiểm tra xem model đã được khởi tạo chưa
+        if cls.model is None or cls.tokenizer is None:
+            cls.initialize()
+            
+        embeddings, original_texts = cls.embeddings(
             texts, 
-            self.model, 
-            self.tokenizer, 
-            self.batch_size, 
-            self.embedding_dimension
+            cls.model, 
+            cls.tokenizer, 
+            cls.batch_size, 
+            cls.embedding_dimension
         )
         return embeddings, original_texts
-
 
 # if __name__ == "__main__":
 #     # Test the Embedding class
@@ -125,10 +136,11 @@ class Embedding:
 #         "Việc xả thải trái phép gây ôi nhiễm không gian sống của sinh vật",
 #         "Làm cách nào để tải một file trên youtobe?",
 #     ]
-#     emb = Embedding()
-#     embeddings, origin_text = emb.get_embeddings(texts)
+#     Embedding.initialize()
+#     embeddings, origin_text = Embedding.get_embeddings(texts)
 #     query = "Tài nguyên, môi trường"
-#     query_embedding, _ = emb.get_embeddings([query])
+#     query_embedding, _ = Embedding.get_embeddings([query])
 #     # score simmarity
 #     scores = np.dot(embeddings, query_embedding.T)
 #     print(scores)
+

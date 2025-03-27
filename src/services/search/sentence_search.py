@@ -21,7 +21,7 @@ class SentenceSearch:
         index.add(self.embeddings)
         return index
 
-    def search(self, query_embedding, k=5):
+    def search(self, query_embedding, k : int = 5):
         """
         Search for the most similar sentences to the query
         
@@ -52,19 +52,19 @@ class SentenceSearch:
         
         return results
 
-if __name__ == "__main__":
-    from src.services.search.embedding import Embedding
-    emb = Embedding()
-    texts_list = ["Hôm nay trời nắng to", "Hôm nay trời mưa", "Trường học màu xanh", "Tôi đi học về"]
-    embeddings, texts = emb.get_embeddings(texts_list)
+# if __name__ == "__main__":
+#     from src.services.search.embedding import Embedding
+#     Embedding.initialize()
+#     texts_list = ["Hôm nay trời nắng to", "Hôm nay trời mưa", "Trường học màu xanh", "Tôi đi học về"]
+#     embeddings, texts = Embedding.get_embeddings(texts_list)
     
-    search = SentenceSearch(embeddings, texts)
+#     search = SentenceSearch(embeddings, texts)
     
-    query = "Thời tiết"
+#     query = "Thời tiết"
     
-    query_embedding, _ = emb.get_embeddings([query])
+#     query_embedding, _ = Embedding.get_embeddings([query])
     
-    results = search.search(query_embedding, k=2)
+#     results = search.search(query_embedding, k=2)
     
-    for result in results:
-        print(result)
+#     for result in results:
+#         print(result)

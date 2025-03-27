@@ -1,8 +1,17 @@
 import PyPDF2
 import re
+import os
 class PDFTextExtractor:
     # def __init__(self, pdf_path: str):
     #     self.pdf_path = pdf_path
+    
+    @staticmethod
+    def save_to_upload(file):
+        os.makedirs("uploads", exist_ok=True)
+        file_path = os.path.join("uploads", file.filename)
+        with open(file_path, "wb") as buffer:
+            buffer.write(file.file.read())
+        return file.filename, file_path
     
     @staticmethod    
     def extract_text_from_pdf(pdf_path: str,
@@ -18,7 +27,7 @@ class PDFTextExtractor:
                 with open(output_path, "w") as out_file:
                     out_file.write(text)
         return text
-    
+        
     @staticmethod
     def sentence_segmentation(text: str) -> list[str]:
         """
@@ -77,7 +86,6 @@ class PDFTextExtractor:
                 cleaned_sentences.append(cleaned)
         
         return cleaned_sentences
-    
 # if __name__ == "__main__":
 #     pdf_path = "data/GVR_Baocaothuongnien_2023.pdf"
 #     ouput_path = f"output/{pdf_path[5:-4]}.txt"
@@ -87,5 +95,5 @@ class PDFTextExtractor:
 #     sentences = PDFTextExtractor.sentence_segmentation(pdf_text)
 #     with open(f"output/sentence_{pdf_path[5:-4]}.jsonl", "w") as out_file:
 #         for sentence in sentences:
-#             s = sentence.replace("\n", " ")
+#             s = sentence.replace("\n", " ") 
 #             out_file.write(f"\"sentence\":\"{s}\"\n")

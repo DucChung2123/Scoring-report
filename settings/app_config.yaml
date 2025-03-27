@@ -1,9 +1,29 @@
 app:
-  app_name: "FH ESC Scoring"
+  app_name: FH ESC Scoring
   host: 0.0.0.0
   port: 8888
 
 embedding:
-  model_dir: "models"
-  model_name: "gte-multilingual-base"
+  model_dir: models
+  model_name: gte-multilingual-base
   batch_size: 32
+
+esg:
+  e:
+    Emission: Lượng khí thải ra môi trường, đặc biệt là khí nhà kính (CO₂, CH₄, v.v.). Tiêu chí này đánh giá mức độ công ty kiểm soát, giảm thiểu hoặc bù đắp phát thải từ hoạt động sản xuất và vận hành.
+    Resource Use: Hiệu quả trong việc sử dụng tài nguyên như nước, năng lượng, nguyên liệu thô. Bao gồm các chính sách tiết kiệm, tái sử dụng hoặc sử dụng nguồn năng lượng tái tạo.
+    Product Innovation: Việc phát triển sản phẩm thân thiện với môi trường, sáng tạo để giảm tác động đến môi trường hoặc góp phần giải quyết các vấn đề môi trường.
+  s:
+    Community: Mức độ gắn kết, đóng góp của doanh nghiệp với cộng đồng địa phương như từ thiện, phát triển cơ sở hạ tầng, giáo dục, y tế,…
+    Diversity: Sự đa dạng trong lực lượng lao động, bao gồm giới tính, tuổi tác, chủng tộc, khả năng tiếp cận công bằng cho mọi nhóm người.
+    Employment: Chính sách tạo việc làm, chất lượng việc làm, phúc lợi và sự ổn định trong tuyển dụng và giữ chân nhân viên.
+    HS: Đảm bảo môi trường làm việc an toàn cho nhân viên, chính sách phòng tránh tai nạn lao động và chăm sóc sức khỏe.
+    HR: Tôn trọng và bảo vệ quyền con người, không phân biệt đối xử, chống lao động cưỡng bức, trẻ em.
+    PR: Đảm bảo chất lượng, độ an toàn và thông tin minh bạch về sản phẩm/dịch vụ với người tiêu dùng.
+    Training: Cơ hội học tập, đào tạo nâng cao năng lực cho nhân viên, phát triển kỹ năng và sự nghiệp.
+  g:
+    BFunction: Mức độ hiệu quả, minh bạch và trách nhiệm của HĐQT - hội đồng quản trị trong việc giám sát và đưa ra quyết định chiến lược.
+    BStructure: Cấu trúc tổ chức HĐQT - hội đồng quản trị, bao gồm sự độc lập của các thành viên, đa dạng và sự cân bằng quyền lực.
+    Compensation: Cơ chế trả lương, thưởng cho lãnh đạo và nhân viên; có minh bạch và tương xứng với hiệu suất hay không.
+    Shareholder: Quyền và lợi ích của cổ đông được đảm bảo ra sao; mức độ minh bạch trong chia sẻ thông tin và tham gia vào quyết định lớn.
+    Vision: Chiến lược dài hạn và tầm nhìn phát triển bền vững của doanh nghiệp, đặc biệt là tích hợp yếu tố môi trường, xã hội, quản trị vào định hướng phát triển.

@@ -13,4 +13,5 @@ class AppConfig(BaseModel):
     MODEL_NAME: str = Field(default=APP_CONFIG_YAML["embedding"]["model_name"])
     BATCH_SIZE: int = Field(default=APP_CONFIG_YAML["embedding"]["batch_size"])
 
+    ESG: dict[str, dict[str, Any]] = Field(default=APP_CONFIG_YAML["esg"])
 settings = AppConfig()
