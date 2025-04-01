@@ -1,6 +1,9 @@
 import PyPDF2
 import re
 import os
+import json
+from pdfminer.high_level import extract_text, extract_pages
+
 class PDFTextExtractor:
     # def __init__(self, pdf_path: str):
     #     self.pdf_path = pdf_path
@@ -16,16 +19,45 @@ class PDFTextExtractor:
     @staticmethod    
     def extract_text_from_pdf(pdf_path: str,
                               output_path: str = None) -> str:
-        with open(pdf_path, "rb") as file:
-            pdf = PyPDF2.PdfReader(file)
-            text = ""
-            pages = pdf.pages
-            for page_num in range(len(pages)):
-                page = pages[page_num]
-                text += page.extract_text()
-            if output_path:
-                with open(output_path, "w") as out_file:
-                    out_file.write(text)
+        # with open(pdf_path, "rb") as file:
+        #     pdf = PyPDF2.PdfReader(file)
+        #     text = ""
+        #     pages = pdf.pages
+        #     for page_num in range(len(pages)):
+        #         page = pages[page_num]
+        #         text += page.extract_text()
+        #     if output_path:
+        #         with open(output_path, "w") as out_file:
+        #             out_file.write(text)
+        
+        # Get page layouts
+        page_layouts = list(extract_pages(pdf_path))
+        results = []
+        text = ""
+        
+        # Process each page layout
+        for i, layout in enumerate(page_layouts):
+            # Extract text from this page
+            page_text = ""
+            for element in layout:
+                if hasattr(element, "get_text"):
+                    page_text += element.get_text()
+            
+            # Add to results
+            obj = {
+                "page": i,
+                "text": page_text
+            }
+            
+            # Add to total text
+            text += page_text
+            results.append(obj)
+        
+        # Write to JSON file
+        if output_path:
+            with open(output_path, "w") as out_file:
+                json.dump(results, out_file, indent=4, ensure_ascii=False)
+                
         return text
         
     @staticmethod
@@ -86,11 +118,11 @@ class PDFTextExtractor:
                 cleaned_sentences.append(cleaned)
         
         return cleaned_sentences
-# if __name__ == "__main__":
-#     pdf_path = "data/GVR_Baocaothuongnien_2023.pdf"
-#     ouput_path = f"output/{pdf_path[5:-4]}.txt"
-#     pdf_text = PDFTextExtractor.extract_text_from_pdf(pdf_path, ouput_path)
-#     print(pdf_text)
+if __name__ == "__main__":
+    pdf_path = "data/GVR_Baocaothuongnien_2023.pdf"
+    ouput_path = f"output/{pdf_path[5:-4]}.json"
+    pdf_text = PDFTextExtractor.extract_text_from_pdf(pdf_path, ouput_path)
+    # print(pdf_text)
     
 #     sentences = PDFTextExtractor.sentence_segmentation(pdf_text)
 #     with open(f"output/sentence_{pdf_path[5:-4]}.jsonl", "w") as out_file:

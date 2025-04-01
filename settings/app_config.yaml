@@ -6,7 +6,7 @@ app:
 embedding:
   model_dir: models
   model_name: gte-multilingual-base
-  batch_size: 32
+  batch_size: 16
 
 esg:
   e:

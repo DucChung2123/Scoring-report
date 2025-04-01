@@ -83,7 +83,7 @@ class Embedding:
                 # Tokenize
                 batch_dict = tokenizer(
                     batch_texts, 
-                    max_length=8192,
+                    max_length=2048,
                     padding=True, 
                     truncation=True, 
                     return_tensors='pt'
