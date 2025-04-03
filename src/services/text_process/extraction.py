@@ -15,6 +15,139 @@ class PDFTextExtractor:
         with open(file_path, "wb") as buffer:
             buffer.write(file.file.read())
         return file.filename, file_path
+        
+    @staticmethod
+    def clean_vietnamese_text(json_objects: list) -> list:
+        """
+        Làm sạch văn bản tiếng Việt từ danh sách JSON objects, bao gồm:
+        - Ghép văn bản từ nhiều trang
+        - Loại bỏ số trang, header, và các phần thừa khác
+        - Xử lý ký tự ngắt dòng
+        - Gộp các câu ngắn thành đoạn có nghĩa
+        
+        Args:
+            json_objects (list): Danh sách các JSON object, mỗi object chứa thông tin của một trang
+                với cấu trúc {"page": số_trang, "text": nội_dung_văn_bản}
+                
+        Returns:
+            list: Danh sách các đoạn văn bản đã được làm sạch
+        """
+        # Kiểm tra nếu không có dữ liệu
+        if not json_objects:
+            return []
+        
+        # Thu thập tất cả văn bản thô từ các trang
+        all_text = ""
+        for obj in json_objects:
+            text = obj.get('text', '').strip()
+            if text:
+                all_text += text + "\n\n"
+        
+        # Tiền xử lý văn bản
+        # 1. Loại bỏ số trang độc lập (các số có 1-3 chữ số ở dòng riêng)
+        all_text = re.sub(r'\n\s*\d{1,3}\s*\n', '\n\n', all_text)
+        
+        # 2. Loại bỏ các header lặp lại (viết hoa hoàn toàn và xuất hiện nhiều lần)
+        header_pattern = r'([A-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠƯẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼẾỀỂỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪỬỮỰỲỴỶỸ\s]{10,})'
+        headers = re.findall(header_pattern, all_text)
+        for header in set(headers):
+            # Nếu header xuất hiện nhiều lần, chỉ giữ lần xuất hiện đầu tiên
+            if all_text.count(header) > 1:
+                # Tìm vị trí xuất hiện đầu tiên
+                first_pos = all_text.find(header)
+                # Thay thế các lần xuất hiện tiếp theo bằng khoảng trống
+                all_text = all_text[:first_pos+len(header)] + all_text[first_pos+len(header):].replace(header, '')
+        
+        # 3. Chuẩn hóa ngắt dòng và khoảng trống
+        all_text = re.sub(r'\n{3,}', '\n\n', all_text)  # Thay thế 3+ xuống dòng bằng 2 xuống dòng
+        all_text = re.sub(r'\s+', ' ', all_text)  # Thay thế nhiều khoảng trắng bằng 1 khoảng trắng
+        
+        # Chia văn bản thành các đoạn dựa trên các khoảng trống lớn
+        paragraphs_raw = re.split(r'\n\s*\n', all_text)
+        
+        # Xử lý và làm sạch từng đoạn
+        paragraphs = []
+        current_paragraph = ""
+        
+        for p in paragraphs_raw:
+            p = p.strip()
+            if not p:
+                continue
+            
+            # Nếu đoạn quá ngắn và không kết thúc bằng dấu câu
+            if len(p) < 100 and not re.search(r'[.!?]$', p):
+                if current_paragraph:
+                    current_paragraph += " " + p
+                else:
+                    current_paragraph = p
+            else:
+                # Nếu đoạn đủ dài hoặc kết thúc bằng dấu câu
+                if current_paragraph:
+                    current_paragraph += " " + p
+                    paragraphs.append(current_paragraph)
+                    current_paragraph = ""
+                else:
+                    paragraphs.append(p)
+        
+        # Xử lý đoạn cuối cùng nếu còn
+        if current_paragraph:
+            paragraphs.append(current_paragraph)
+        
+        # Kiểm tra và xử lý các đoạn quá dài
+        max_paragraph_length = 1000  # Độ dài tối đa của một đoạn (khoảng 200 từ)
+        processed_paragraphs = []
+        
+        for p in paragraphs:
+            if len(p) > max_paragraph_length:
+                # Tìm các vị trí có thể chia đoạn (kết thúc bằng dấu chấm)
+                sentence_ends = [m.end() for m in re.finditer(r'\.(?=\s)', p)]
+                
+                if sentence_ends:
+                    # Chia đoạn dài thành nhiều đoạn nhỏ hơn
+                    start = 0
+                    for i, end in enumerate(sentence_ends):
+                        if end - start >= max_paragraph_length / 2 or i == len(sentence_ends) - 1:
+                            sub_p = p[start:end].strip()
+                            if len(sub_p) > 50:  # Chỉ lấy các đoạn có ý nghĩa
+                                processed_paragraphs.append(sub_p)
+                            start = end
+                    
+                    # Xử lý phần còn lại nếu có
+                    if start < len(p):
+                        remaining = p[start:].strip()
+                        if len(remaining) > 50:
+                            processed_paragraphs.append(remaining)
+                else:
+                    # Nếu không thể tìm thấy vị trí tốt để chia, giữ nguyên đoạn
+                    processed_paragraphs.append(p)
+            else:
+                processed_paragraphs.append(p)
+        
+        # Làm sạch lần cuối các đoạn văn bản
+        final_paragraphs = []
+        
+        for p in processed_paragraphs:
+            # Loại bỏ các ký tự đặc biệt không cần thiết
+            p = re.sub(r'[^\w\s\.,;:?!()"""''\-–—\[\]ÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠƯẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼẾỀỂỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪỬỮỰỲỴỶỸ]', '', p)
+            
+            # Chuẩn hóa các dấu câu
+            p = re.sub(r'\s+([.,;:?!)])', r'\1', p)
+            p = re.sub(r'([(\["])\s+', r'\1', p)
+            p = re.sub(r'\s+', ' ', p).strip()
+            
+            # Loại bỏ các đoạn chỉ có số liệu
+            if re.match(r'^[\d\s.,:%/]+$', p):
+                continue
+                
+            # Chỉ lấy các đoạn có ý nghĩa và đủ dài (> 50 ký tự)
+            if len(p) > 50:
+                # Đếm số lượng chữ cái tiếng Việt
+                alpha_count = sum(1 for c in p if c.isalpha() or c in 'ÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠƯẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼẾỀỂỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪỬỮỰỲỴỶỸ')
+                # Chỉ lấy đoạn có ít nhất 50% là chữ cái
+                if alpha_count / len(p) >= 0.5:
+                    final_paragraphs.append(p)
+        
+        return final_paragraphs
     
     @staticmethod    
     def extract_text_from_pdf(pdf_path: str,
@@ -58,7 +191,7 @@ class PDFTextExtractor:
             with open(output_path, "w") as out_file:
                 json.dump(results, out_file, indent=4, ensure_ascii=False)
                 
-        return text
+        return results
         
     @staticmethod
     def sentence_segmentation(text: str) -> list[str]:
