@@ -1,4 +1,3 @@
-import PyPDF2
 import re
 import os
 import json
