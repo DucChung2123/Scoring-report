@@ -14,13 +14,34 @@ class ModelConfig:
         self._setup_labels()
     
     def _setup_device(self) -> None:
-        """Setup device based on config"""
+        """Setup global device based on config"""
         device_conf = self.model_conf['device']
         if device_conf['auto_detect']:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         else:
             self.device = torch.device(device_conf['fallback'])
-        print(f"Using device: {self.device}")
+        print(f"Global device: {self.device}")
+    
+    def get_model_device(self, model_config: dict) -> torch.device:
+        """Get device for specific model based on its config"""
+        if 'device' not in model_config:
+            return self.device
+        
+        device_spec = model_config['device']
+        
+        if device_spec == "auto":
+            return self.device
+        elif device_spec == "cuda":
+            if torch.cuda.is_available():
+                return torch.device("cuda")
+            else:
+                print(f"Warning: CUDA requested but not available, falling back to CPU")
+                return torch.device("cpu")
+        elif device_spec == "cpu":
+            return torch.device("cpu")
+        else:
+            print(f"Warning: Unknown device '{device_spec}', using global device")
+            return self.device
     
     def _setup_labels(self) -> None:
         """Setup all label mappings from config"""

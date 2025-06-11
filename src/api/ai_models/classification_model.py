@@ -106,43 +106,90 @@ class ClassificationModelManager:
         self.tokenizer = None
     
     async def load(self) -> None:
-        """Load classification model with exact logic from app.py"""
+        """Load classification model - supports both HuggingFace Hub and local checkpoint"""
         print("Loading sub-factor classification model and tokenizer...")
         try:
             cls_conf = config.classification_config
-            arch_conf = cls_conf['architecture']
             
-            # Load tokenizer
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                cls_conf['base_model'], 
-                cache_dir=cls_conf['cache_dir'],
-                trust_remote_code=config.loading_config['trust_remote_code']
-            )
-            
-            # Initialize model architecture
-            self.model = HierarchicalMTLClassifier(
-                model_name=cls_conf['base_model'],
-                num_esg_classes=config.num_esg_classes,
-                num_e_sub_classes=config.num_e_sub_classes,
-                num_s_sub_classes=config.num_s_sub_classes,
-                num_g_sub_classes=config.num_g_sub_classes,
-                shared_hidden_dim_factor=arch_conf['shared_hidden_dim_factor'],
-                head_hidden_dim_factor=arch_conf['head_hidden_dim_factor'],
-                dropout_rate=arch_conf['dropout_rate'],
-                freeze_gte=arch_conf['freeze_gte']
-            ).to(config.device)
-            
-            # Load weights
-            self.model.load_state_dict(torch.load(cls_conf['weights_path'], map_location=config.device))
-            print(f"Loaded sub-factor model weights from {cls_conf['weights_path']}")
+            # Check if hub_path is configured for HuggingFace Hub loading
+            if 'hub_path' in cls_conf and cls_conf['hub_path']:
+                print(f"Using HuggingFace Hub loading from: {cls_conf['hub_path']}")
+                await self._load_from_hub(cls_conf)
+            else:
+                print("Using local checkpoint loading")
+                await self._load_from_checkpoint(cls_conf)
                 
-            if config.loading_config['eval_mode']:
-                self.model.eval()
             print("Sub-factor classification model and tokenizer loaded successfully")
             
         except Exception as e:
             print(f"Error loading sub-factor classification model: {e}")
             raise e
+    
+    async def _load_from_hub(self, cls_conf: dict) -> None:
+        """Load model from HuggingFace Hub (simple and clean like test.py)"""
+        from transformers import AutoModelForSequenceClassification
+        
+        # Get device for this model
+        model_device = config.get_model_device(cls_conf)
+        
+        # Load model from Hub
+        self.model = AutoModelForSequenceClassification.from_pretrained(
+            cls_conf['hub_path'],
+            trust_remote_code=config.loading_config['trust_remote_code'],
+            cache_dir=cls_conf.get('cache_dir', 'models')
+        )
+        
+        # Load tokenizer
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            cls_conf.get('base_model', 'Alibaba-NLP/gte-multilingual-base'),
+            trust_remote_code=config.loading_config['trust_remote_code'],
+            cache_dir=cls_conf.get('cache_dir', 'models')
+        )
+        
+        # Move to specified device and set eval mode
+        if config.loading_config['device_placement']:
+            self.model.to(model_device)
+            print(f"Moved classification model to device: {model_device}")
+        
+        if config.loading_config['eval_mode']:
+            self.model.eval()
+            
+        print(f"Loaded model from HuggingFace Hub: {cls_conf['hub_path']}")
+    
+    async def _load_from_checkpoint(self, cls_conf: dict) -> None:
+        """Load model from local checkpoint (original logic)"""
+        arch_conf = cls_conf['architecture']
+        
+        # Get device for this model
+        model_device = config.get_model_device(cls_conf)
+        
+        # Load tokenizer
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            cls_conf['base_model'], 
+            cache_dir=cls_conf['cache_dir'],
+            trust_remote_code=config.loading_config['trust_remote_code']
+        )
+        
+        # Initialize model architecture
+        self.model = HierarchicalMTLClassifier(
+            model_name=cls_conf['base_model'],
+            num_esg_classes=config.num_esg_classes,
+            num_e_sub_classes=config.num_e_sub_classes,
+            num_s_sub_classes=config.num_s_sub_classes,
+            num_g_sub_classes=config.num_g_sub_classes,
+            shared_hidden_dim_factor=arch_conf['shared_hidden_dim_factor'],
+            head_hidden_dim_factor=arch_conf['head_hidden_dim_factor'],
+            dropout_rate=arch_conf['dropout_rate'],
+            freeze_gte=arch_conf['freeze_gte']
+        ).to(model_device)
+        
+        # Load weights
+        self.model.load_state_dict(torch.load(cls_conf['weights_path'], map_location=model_device))
+        print(f"Loaded sub-factor model weights from {cls_conf['weights_path']}")
+        print(f"Moved classification model to device: {model_device}")
+            
+        if config.loading_config['eval_mode']:
+            self.model.eval()
     
     def predict(self, text: str) -> Tuple[str, str]:
         """Classify text to predict ESG factor and sub-factor"""
@@ -151,7 +198,7 @@ class ClassificationModelManager:
         
         cls_conf = config.classification_config
         
-        # Tokenize input - exact logic from app.py
+        # Tokenize input
         tokenized_input = self.tokenizer(
             text,
             truncation=True,
@@ -159,11 +206,28 @@ class ClassificationModelManager:
             return_tensors="pt"
         )
         
-        # Move tensors to device
-        input_ids = tokenized_input.input_ids.to(config.device)
-        attention_mask = tokenized_input.attention_mask.to(config.device)
+        # Get model device and move tensors to that device
+        model_device = config.get_model_device(cls_conf)
+        input_ids = tokenized_input.input_ids.to(model_device)
+        attention_mask = tokenized_input.attention_mask.to(model_device)
         
-        # Get model predictions - exact logic from app.py
+        # Check if using HuggingFace Hub model or local checkpoint model
+        if 'hub_path' in cls_conf and cls_conf['hub_path']:
+            # Use HuggingFace Hub model predict method
+            return self._predict_hub_model(input_ids, attention_mask)
+        else:
+            # Use local checkpoint model predict method
+            return self._predict_checkpoint_model(input_ids, attention_mask)
+    
+    def _predict_hub_model(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> Tuple[str, str]:
+        """Predict using HuggingFace Hub model (simple like test.py)"""
+        with torch.no_grad():
+            # Use the predict method from HuggingFace model
+            esg_factor, sub_factor = self.model.predict(input_ids, attention_mask)
+            return esg_factor, sub_factor
+    
+    def _predict_checkpoint_model(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> Tuple[str, str]:
+        """Predict using local checkpoint model (original logic)"""
         with torch.no_grad():
             logits_esg, logits_e_sub, logits_s_sub, logits_g_sub = self.model(
                 input_ids=input_ids, 

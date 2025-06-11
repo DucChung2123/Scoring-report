@@ -10,37 +10,80 @@ class ScoringModelManager:
         self.tokenizer = None
     
     async def load(self) -> None:
-        """Load scoring model with exact logic from app.py"""
+        """Load scoring model - supports both HuggingFace Hub and local checkpoint"""
         print("Loading scoring model and tokenizer...")
         try:
             score_conf = config.scoring_config
             
-            # Load tokenizer
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                score_conf['path'], 
-                trust_remote_code=config.loading_config['trust_remote_code']
-            )
-            
-            # Load model
-            self.model = AutoModelForSequenceClassification.from_pretrained(
-                score_conf['path'],
-                num_labels=len(score_conf['labels']),
-                id2label={v: k for k, v in score_conf['labels'].items()},
-                label2id=score_conf['labels'],
-                trust_remote_code=config.loading_config['trust_remote_code']
-            )
-            
-            if config.loading_config['device_placement']:
-                self.model.to(config.device)
-            
-            if config.loading_config['eval_mode']:
-                self.model.eval()
+            # Check if hub_path is configured for HuggingFace Hub loading
+            if 'hub_path' in score_conf and score_conf['hub_path']:
+                print(f"Using HuggingFace Hub loading from: {score_conf['hub_path']}")
+                await self._load_from_hub(score_conf)
+            else:
+                print("Using local checkpoint loading")
+                await self._load_from_checkpoint(score_conf)
                 
             print("Scoring model and tokenizer loaded successfully")
             
         except Exception as e:
             print(f"Error loading scoring model: {e}")
             raise e
+    
+    async def _load_from_hub(self, score_conf: dict) -> None:
+        """Load model from HuggingFace Hub (simple loading)"""
+        # Get device for this model
+        model_device = config.get_model_device(score_conf)
+        
+        # Load model from Hub with cache
+        self.model = AutoModelForSequenceClassification.from_pretrained(
+            score_conf['hub_path'],
+            trust_remote_code=config.loading_config['trust_remote_code'],
+            cache_dir=score_conf.get('cache_dir', 'models')
+        )
+        
+        # Load tokenizer with cache
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            score_conf['hub_path'],
+            trust_remote_code=config.loading_config['trust_remote_code'],
+            cache_dir=score_conf.get('cache_dir', 'models')
+        )
+        
+        # Move to specified device and set eval mode
+        if config.loading_config['device_placement']:
+            self.model.to(model_device)
+            print(f"Moved scoring model to device: {model_device}")
+        
+        if config.loading_config['eval_mode']:
+            self.model.eval()
+            
+        print(f"Loaded model from HuggingFace Hub: {score_conf['hub_path']}")
+    
+    async def _load_from_checkpoint(self, score_conf: dict) -> None:
+        """Load model from local checkpoint (original logic)"""
+        # Get device for this model
+        model_device = config.get_model_device(score_conf)
+        
+        # Load tokenizer
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            score_conf['path'], 
+            trust_remote_code=config.loading_config['trust_remote_code']
+        )
+        
+        # Load model
+        self.model = AutoModelForSequenceClassification.from_pretrained(
+            score_conf['path'],
+            num_labels=len(score_conf['labels']),
+            id2label={v: k for k, v in score_conf['labels'].items()},
+            label2id=score_conf['labels'],
+            trust_remote_code=config.loading_config['trust_remote_code']
+        )
+        
+        if config.loading_config['device_placement']:
+            self.model.to(model_device)
+            print(f"Moved scoring model to device: {model_device}")
+        
+        if config.loading_config['eval_mode']:
+            self.model.eval()
     
     def predict(self, text: str, factor: str) -> float:
         """Score text for given ESG factor"""
@@ -63,9 +106,10 @@ class ScoringModelManager:
             return_tensors="pt"
         )
         
-        # Move tensors to device
-        input_ids = tokenized_input.input_ids.to(config.device)
-        attention_mask = tokenized_input.attention_mask.to(config.device)
+        # Move tensors to model device
+        model_device = config.get_model_device(score_conf)
+        input_ids = tokenized_input.input_ids.to(model_device)
+        attention_mask = tokenized_input.attention_mask.to(model_device)
         
         # Get model predictions - exact logic from app.py
         with torch.no_grad():
