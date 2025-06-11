@@ -6,3 +6,7 @@ __pycache__/
 *.pyc
 *.log
 uploads/
+memory-bank/
+quy-trinh-trich-xuat-pdf-chi-tiet.md
+quy-trinh-trich-xuat-pdf.md
+REFACTORING_COMPLETE.md

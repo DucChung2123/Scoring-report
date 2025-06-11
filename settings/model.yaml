@@ -1,0 +1,49 @@
+# Hello, I'm Chung, AI Engineer in MISA JSC!
+# Model Configuration for ESG Scoring API
+
+device:
+  auto_detect: true
+  fallback: "cpu"
+
+# ESG Scoring Model Configuration
+scoring_model:
+  path: "models/scoring/checkpoint-2424/"
+  max_length: 8192
+  labels:
+    E: 0
+    S: 1
+    G: 2
+  label_names: ["E", "S", "G"]
+
+# Sub-factor Classification Model Configuration
+classification_model:
+  base_model: "Alibaba-NLP/gte-multilingual-base"
+  weights_path: "models/extracting/20-5_best_hierarchical_mtl_4096_esg_model_state.pth"
+  max_length: 4096
+  cache_dir: "models"
+  
+  # Model Architecture Parameters
+  architecture:
+    shared_hidden_dim_factor: 0.5
+    head_hidden_dim_factor: 0.25
+    dropout_rate: 0.1
+    freeze_gte: true
+
+# ESG Categories and Sub-factors
+esg_categories:
+  main: ["E", "S", "G", "Others_ESG"]
+  
+  sub_factors:
+    E: ["Emission", "Resource Use", "Product Innovation"]
+    S: ["Community", "Diversity", "Employment", "HS", "HR", "PR", "Training"]
+    G: ["BFunction", "BStructure", "Compensation", "Shareholder", "Vision"]
+  
+  # Final label configuration
+  final_others_label: "Others"
+  ignore_index: -100
+
+# Model Loading Configuration
+loading:
+  trust_remote_code: true
+  eval_mode: true
+  device_placement: true
