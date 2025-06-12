@@ -14,7 +14,7 @@ scoring_model:
   # Local checkpoint configuration (used when hub_path is not provided)
   path: "models/scoring/checkpoint-2424/"
   max_length: 8192
-  device: "cuda"  # Specify device: "cuda", "cpu", or "auto"
+  device: "cpu"  # Specify device: "cuda", "cpu", or "auto"
   cache_dir: "models"  # Cache directory for HuggingFace models
   labels:
     E: 0
@@ -26,7 +26,7 @@ scoring_model:
 classification_model:
   # HuggingFace Hub path (if provided, will use Hub loading instead of local checkpoint)
   hub_path: "chungpt2123/esg-subfactor-classifier"
-  device: "cuda"  # Specify device: "cuda", "cpu", or "auto"
+  device: "cpu"  # Specify device: "cuda", "cpu", or "auto"
   
   # Local checkpoint configuration (used when hub_path is not provided)
   base_model: "Alibaba-NLP/gte-multilingual-base"

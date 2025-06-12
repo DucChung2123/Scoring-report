@@ -2,7 +2,7 @@ import pandas as pd
 import requests
 from tqdm import tqdm
 # real time accuracy check for ESG sub factor classification
-path = "data/eval/ESG_data.jsonl"
+path = "data/eval/test_other_lablel.jsonl"
 url = 'http://localhost:8888/classify_sub_factor'
 
 df = pd.read_json(path, lines=True)

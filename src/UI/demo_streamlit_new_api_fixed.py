@@ -8,7 +8,7 @@ from pathlib import Path
 
 # Add parent directory to sys.path to import from src
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from src.services.text_process.extraction import PDFTextExtractor
+from src.api.services.text.extraction import PDFTextExtractor
 
 # Set page configuration
 st.set_page_config(
@@ -90,9 +90,13 @@ st.markdown('<h1 class="main-header">ESG Text Viewer</h1>', unsafe_allow_html=Tr
 # Load factor mapping from config
 def load_esg_factors():
     try:
-        # Add parent directory to sys.path to import from src
-        from src.core.config import settings
-        return settings.ESG
+        # Use the finetune config directly since settings might not be available
+        from src.finetune.extract_utils.config import SUB_FACTORS_E, SUB_FACTORS_S, SUB_FACTORS_G
+        return {
+            'e': {factor: f"{factor} related content" for factor in SUB_FACTORS_E},
+            's': {factor: f"{factor} related content" for factor in SUB_FACTORS_S}, 
+            'g': {factor: f"{factor} related content" for factor in SUB_FACTORS_G}
+        }
     except ImportError:
         # Fallback if import fails
         return {
@@ -169,6 +173,7 @@ def classify_paragraphs(paragraphs, api_url):
     Returns:
         list: List of classification results
     """
+    # Updated endpoint path to match the new API structure
     endpoint = f"{api_url}/classify_sub_factor_batch"
     
     # Process paragraphs in batches to avoid overwhelming the API
@@ -187,7 +192,7 @@ def classify_paragraphs(paragraphs, api_url):
         batch_progress.progress(i / len(paragraphs))
         batch_status.text(f"Classifying paragraphs {i+1}-{min(i+batch_size, len(paragraphs))} of {len(paragraphs)}...")
         
-        # Create payload for this batch
+        # Create payload for this batch - updated to match new API schema
         payload = [{"text": para} for para in batch]
         
         try:
@@ -224,6 +229,7 @@ def score_paragraphs(paragraphs, factors, api_url):
     Returns:
         list: List of scoring results
     """
+    # Updated endpoint path to match the new API structure
     endpoint = f"{api_url}/score_batch"
     
     # Process paragraphs in batches to avoid overwhelming the API
@@ -373,6 +379,7 @@ def analyze_pdf(file, api_url):
             status_text.text(f"Scoring batch {i//batch_size + 1} of {len(score_requests)//batch_size + 1}...")
             
             try:
+                # Updated endpoint path to match new API structure
                 score_response = requests.post(f"{api_url}/score_batch", json=batch)
                 score_response.raise_for_status()
                 batch_scores = score_response.json()
@@ -497,8 +504,8 @@ with st.sidebar:
     # API endpoint setting
     st.subheader("API Settings")
     api_url = st.text_input(
-        "ESG Classification API URL",
-        value="http://localhost:2003"
+        "ESG Classification API URL (using 8000 by default)",
+        value="http://localhost:8000"
     )
     
     # Add analyze button in sidebar

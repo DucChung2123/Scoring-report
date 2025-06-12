@@ -2,10 +2,10 @@ fastapi
 PyPDF2
 python-dotenv
 transformers
-sentence-transformers
-faiss-cpu
-faiss-gpu
 uvicorn
 torch
 numpy
 einops
+streamlit
+pydantic_settings
+pdfminer.six
