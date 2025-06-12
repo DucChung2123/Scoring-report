@@ -1,0 +1,11 @@
+fastapi
+PyPDF2
+python-dotenv
+transformers
+uvicorn
+torch
+numpy
+einops
+streamlit
+pydantic_settings
+pdfminer.six
