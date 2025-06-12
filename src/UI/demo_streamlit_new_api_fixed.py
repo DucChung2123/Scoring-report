@@ -503,9 +503,14 @@ with st.sidebar:
     
     # API endpoint setting
     st.subheader("API Settings")
+    
+    # Auto-detect API URL: use environment variable if in Docker, localhost if running locally
+    default_api_url = os.environ.get("API_BASE_URL", "http://localhost:8000")
+    
     api_url = st.text_input(
-        "ESG Classification API URL (using 8000 by default)",
-        value="http://localhost:8000"
+        "ESG Classification API URL",
+        value=default_api_url,
+        help="Auto-detected from environment. Change if needed."
     )
     
     # Add analyze button in sidebar
