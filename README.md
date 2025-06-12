@@ -42,7 +42,7 @@ This is the easiest way to get started. Both API and UI will be available with a
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/DucChung2123/Scoring-report.git
    cd Scoring-report
    ```
 
