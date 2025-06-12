@@ -24,6 +24,7 @@ services:
       - "8501:8501"  # Export port 8501 ra ngoài
     environment:
       - PYTHONPATH=/app
+      - API_BASE_URL=http://esg-api:8000  # UI gọi API qua internal Docker network
     command: ["streamlit", "run", "src/UI/demo_streamlit_new_api_fixed.py", "--server.address", "0.0.0.0", "--server.port", "8501", "--server.headless", "true"]
     depends_on:
       - esg-api

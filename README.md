@@ -62,6 +62,10 @@ This is the easiest way to get started. Both API and UI will be available with a
    - **Interactive UI**: http://localhost:8501
    - **API Documentation**: http://localhost:8000/docs
 
+#### Docker Network Configuration
+
+When running with Docker Compose, the UI container automatically connects to the API container via internal Docker network using the service name `esg-api`. The UI will automatically use `http://esg-api:8000` as the API URL when running in Docker, but you can still change it in the UI settings if needed.
+
 #### Docker Commands
 
 ```bash
