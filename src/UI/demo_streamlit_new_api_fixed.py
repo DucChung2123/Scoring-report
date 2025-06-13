@@ -389,12 +389,38 @@ def analyze_pdf(file, api_url):
                 st.warning(f"Batch scoring failed, using defaults: {str(e)}")
                 scores.extend([{"score": 0.75} for _ in batch])
         
-        # Process the results
-        for i, mapping in enumerate(para_mappings):
-            if i < len(scores):
-                score = scores[i]["score"]
-                esg_results[mapping["factor"]][mapping["sub_factor"]].append([
-                    mapping["paragraph"], score
+        # Process the results with classification threshold
+        classification_threshold = 0.99
+        
+        for i, (paragraph, classification) in enumerate(zip(paragraphs, classifications)):
+            factor = classification.get('factor', '').lower()
+            sub_factor = classification.get('sub_factor', '')
+            factor_prob = classification.get('factor_probability', 0.0)
+            sub_factor_prob = classification.get('sub_factor_probability', 0.0)
+            
+            # Apply threshold filter - both probabilities must be >= 0.75
+            if factor_prob < classification_threshold or sub_factor_prob < classification_threshold:
+                # Skip this paragraph if probabilities are below threshold
+                continue
+                
+            # Skip if not E, S, G
+            if factor not in ['e', 's', 'g']:
+                continue
+                
+            # Map sub-factor to config keys
+            mapped_factor, mapped_sub = map_sub_factor_to_config(factor, sub_factor, esg_factors)
+            
+            if mapped_factor and mapped_sub:
+                # Find corresponding score for this paragraph
+                score = 0.75  # Default score
+                for j, mapping in enumerate(para_mappings):
+                    if mapping["paragraph"] == paragraph and mapping["factor"] == mapped_factor and mapping["sub_factor"] == mapped_sub:
+                        if j < len(scores):
+                            score = scores[j]["score"]
+                        break
+                
+                esg_results[mapped_factor][mapped_sub].append([
+                    paragraph, score
                 ])
         
         progress_bar.progress(1.0)
@@ -417,7 +443,126 @@ def analyze_pdf(file, api_url):
         st.error(f"Error analyzing PDF: {str(e)}")
         return None
 
-# Function to display results (unchanged from original)
+# Function to calculate average scores for each ESG factor
+def calculate_esg_averages(esg_results):
+    """Calculate average scores for E, S, G factors"""
+    averages = {'E': 0.0, 'S': 0.0, 'G': 0.0}
+    counts = {'E': 0, 'S': 0, 'G': 0}
+    
+    # Map factor keys to display names
+    factor_mapping = {'e': 'E', 's': 'S', 'g': 'G'}
+    
+    for factor_key, subfactors in esg_results.items():
+        if factor_key in factor_mapping:
+            display_factor = factor_mapping[factor_key]
+            total_score = 0.0
+            total_count = 0
+            
+            # Sum all scores for this factor
+            for subfactor_name, results in subfactors.items():
+                for result in results:
+                    score = result[1]  # Score is at index 1
+                    total_score += score
+                    total_count += 1
+            
+            # Calculate average if we have results
+            if total_count > 0:
+                averages[display_factor] = total_score / total_count
+                counts[display_factor] = total_count
+    
+    return averages, counts
+
+# Function to display ESG average scores
+def display_esg_summary(averages, counts):
+    """Display ESG average scores in a summary format"""
+    st.markdown("### 📊 ESG Scores Summary")
+    
+    # Create three columns for E, S, G
+    col1, col2, col3 = st.columns(3)
+    
+    # Environmental
+    with col1:
+        score = averages['E']
+        count = counts['E']
+        color = "#059669"  # Green
+        st.markdown(f"""
+        <div style="
+            background: linear-gradient(135deg, {color}15 0%, {color}25 100%);
+            border: 2px solid {color};
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            margin: 10px 0;
+        ">
+            <h3 style="color: {color}; margin: 0;">🌿 Environmental</h3>
+            <h1 style="color: {color}; margin: 10px 0; font-size: 2.5em;">{score:.2f}</h1>
+            <p style="color: #666; margin: 0;">{count} paragraphs</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Social
+    with col2:
+        score = averages['S']
+        count = counts['S']
+        color = "#2563EB"  # Blue
+        st.markdown(f"""
+        <div style="
+            background: linear-gradient(135deg, {color}15 0%, {color}25 100%);
+            border: 2px solid {color};
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            margin: 10px 0;
+        ">
+            <h3 style="color: {color}; margin: 0;">👥 Social</h3>
+            <h1 style="color: {color}; margin: 10px 0; font-size: 2.5em;">{score:.2f}</h1>
+            <p style="color: #666; margin: 0;">{count} paragraphs</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Governance
+    with col3:
+        score = averages['G']
+        count = counts['G']
+        color = "#7C3AED"  # Purple
+        st.markdown(f"""
+        <div style="
+            background: linear-gradient(135deg, {color}15 0%, {color}25 100%);
+            border: 2px solid {color};
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            margin: 10px 0;
+        ">
+            <h3 style="color: {color}; margin: 0;">📊 Governance</h3>
+            <h1 style="color: {color}; margin: 10px 0; font-size: 2.5em;">{score:.2f}</h1>
+            <p style="color: #666; margin: 0;">{count} paragraphs</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Overall ESG Score
+    overall_scores = [score for score in averages.values() if score > 0]
+    if overall_scores:
+        overall_avg = sum(overall_scores) / len(overall_scores)
+        total_paragraphs = sum(counts.values())
+        
+        st.markdown("---")
+        st.markdown(f"""
+        <div style="
+            background: linear-gradient(135deg, #1E3A8A15 0%, #1E3A8A25 100%);
+            border: 2px solid #1E3A8A;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+        ">
+            <h3 style="color: #1E3A8A; margin: 0;">🏆 Overall ESG Score</h3>
+            <h1 style="color: #1E3A8A; margin: 10px 0; font-size: 3em;">{overall_avg:.2f}</h1>
+            <p style="color: #666; margin: 0;">Based on {total_paragraphs} classified paragraphs</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+# Function to display results (updated to include ESG summary)
 def display_results(results):
     # Extract data
     file_name = results['file_name']
@@ -426,6 +571,12 @@ def display_results(results):
     
     # Document info
     st.markdown(f"**Document**: {file_name}")
+    
+    # Calculate and display ESG averages
+    averages, counts = calculate_esg_averages(esg_results)
+    display_esg_summary(averages, counts)
+    
+    st.markdown("---")
     
     # ESG tabs
     esg_tabs = st.tabs(["Environmental 🌿", "Social 👥", "Governance 📊"])
@@ -557,7 +708,7 @@ elif 'last_results' in st.session_state:
     # Display cached results
     display_results(st.session_state.last_results)
 else:
-    # Landing page
+    # Landing pageoce
     st.markdown("""
     ## ESG Scoring Analysis Tool
     

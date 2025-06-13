@@ -190,9 +190,9 @@ class ClassificationModelManager:
             
         if config.loading_config['eval_mode']:
             self.model.eval()
-    
-    def predict(self, text: str) -> Tuple[str, str]:
-        """Classify text to predict ESG factor and sub-factor"""
+            
+    def predict(self, text: str) -> Tuple[str, str, float, float]:
+        """Classify text to predict ESG factor and sub-factor with probabilities"""
         if self.model is None or self.tokenizer is None:
             raise RuntimeError("Classification model not loaded")
         
@@ -219,14 +219,16 @@ class ClassificationModelManager:
             # Use local checkpoint model predict method
             return self._predict_checkpoint_model(input_ids, attention_mask)
     
-    def _predict_hub_model(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> Tuple[str, str]:
+    def _predict_hub_model(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> Tuple[str, str, float, float]:
         """Predict using HuggingFace Hub model (simple like test.py)"""
         with torch.no_grad():
             # Use the predict method from HuggingFace model
             esg_factor, sub_factor = self.model.predict(input_ids, attention_mask)
-            return esg_factor, sub_factor
+            # For hub model, we need to get probabilities - this might need to be implemented in the hub model
+            # For now, return default probabilities of 1.0 (assuming hub model doesn't return probabilities)
+            return esg_factor, sub_factor, 1.0, 1.0
     
-    def _predict_checkpoint_model(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> Tuple[str, str]:
+    def _predict_checkpoint_model(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> Tuple[str, str, float, float]:
         """Predict using local checkpoint model (original logic)"""
         with torch.no_grad():
             logits_esg, logits_e_sub, logits_s_sub, logits_g_sub = self.model(
@@ -234,26 +236,31 @@ class ClassificationModelManager:
                 attention_mask=attention_mask
             )
             
-            # Get ESG factor prediction
+            # Get ESG factor prediction and probability
             prob_esg = torch.softmax(logits_esg, dim=1)
             pred_esg_idx = torch.argmax(prob_esg, dim=1).item()
             pred_esg_label = config.esg_id2label[pred_esg_idx]
+            esg_probability = prob_esg[0, pred_esg_idx].item()
             
             # Default sub-factor to "Others"
             sub_factor_label = config.final_others_label
+            sub_factor_probability = 1.0
             
             # Get sub-factor prediction based on ESG factor
             if pred_esg_label == "E":
                 prob_e_sub = torch.softmax(logits_e_sub[0], dim=0)
                 pred_e_sub_idx = torch.argmax(prob_e_sub).item()
                 sub_factor_label = config.e_sub_id2label[pred_e_sub_idx]
+                sub_factor_probability = prob_e_sub[pred_e_sub_idx].item()
             elif pred_esg_label == "S":
                 prob_s_sub = torch.softmax(logits_s_sub[0], dim=0)
                 pred_s_sub_idx = torch.argmax(prob_s_sub).item()
                 sub_factor_label = config.s_sub_id2label[pred_s_sub_idx]
+                sub_factor_probability = prob_s_sub[pred_s_sub_idx].item()
             elif pred_esg_label == "G":
                 prob_g_sub = torch.softmax(logits_g_sub[0], dim=0)
                 pred_g_sub_idx = torch.argmax(prob_g_sub).item()
                 sub_factor_label = config.g_sub_id2label[pred_g_sub_idx]
+                sub_factor_probability = prob_g_sub[pred_g_sub_idx].item()
         
-        return pred_esg_label, sub_factor_label
+        return pred_esg_label, sub_factor_label, esg_probability, sub_factor_probability

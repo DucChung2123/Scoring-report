@@ -6,8 +6,8 @@ class ClassificationService:
     """Service for ESG sub-factor classification operations"""
     
     @staticmethod
-    def classify_text(text: str) -> Tuple[str, str]:
-        """Classify a text to predict its ESG factor and sub-factor"""
+    def classify_text(text: str) -> Tuple[str, str, float, float]:
+        """Classify a text to predict its ESG factor and sub-factor with probabilities"""
         try:
             return model_manager.classify_text(text)
         except RuntimeError as e:

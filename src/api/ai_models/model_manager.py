@@ -21,8 +21,8 @@ class ModelManager:
         """Score text for ESG factor"""
         return self.scoring.predict(text, factor)
     
-    def classify_text(self, text: str) -> tuple[str, str]:
-        """Classify text for ESG factor and sub-factor"""
+    def classify_text(self, text: str) -> tuple[str, str, float, float]:
+        """Classify text for ESG factor and sub-factor with probabilities"""
         return self.classification.predict(text)
 
 # Global model manager instance
